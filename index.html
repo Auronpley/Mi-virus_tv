@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtus TV</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #000; overflow: hidden; text-align: center; color: white; }
+        #video-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            display: none; 
+            pointer-events: none; 
+        } 
+        #start-button { 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            padding: 15px 30px; 
+            font-size: 18px; 
+            background: #ff0000; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+
+        /* Estilos para el logo */
+        #logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 100px; /* Ajusta el tamaño */
+            height: auto;
+            z-index: 10;
+        }
+
+        /* Evita que el video se estire en móviles */
+        @media (max-width: 768px) {
+            #video-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            video {
+                width: 100vw; 
+                height: auto; 
+                max-height: 100vh; 
+                object-fit: contain;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <img id="logo" src="https://i.postimg.cc/Nf6yWM5b/descarga.png" alt"> <!-- Agrega tu logo aquí -->
+
+    <div id="video-container">
+        <video id="video-player" autoplay playsinline></video>
+        <button id="start-button">Iniciar</button>
+    </div>
+
+    <script>
+        const ws = new WebSocket("wss://" + window.location.host);
+        const videoPlayer = document.getElementById("video-player");
+        const startButton = document.getElementById("start-button");
+
+        let firstInteraction = false;
+        let lastSyncTime = 0;
+
+        startButton.addEventListener("click", () => {
+            startButton.style.display = "none";
+            videoPlayer.style.display = "block";
+            firstInteraction = true;
+        });
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("Datos recibidos:", data);
+
+            if (data.currentVideo) {
+                videoPlayer.src = data.currentVideo.url;
+
+                const serverTime = data.elapsedTime;
+                const localTime = videoPlayer.currentTime;
+                if (Math.abs(localTime - serverTime) > 2) {
+                    videoPlayer.currentTime = serverTime;
+                    console.log("Corrigiendo tiempo:", serverTime);
+                }
+
+                if (firstInteraction) {
+                    videoPlayer.play().catch(error => console.error("Error al reproducir:", error));
+                }
+            }
+        };
+
+        videoPlayer.addEventListener("ended", () => {
+            ws.send(JSON.stringify({ action: "video-ended" }));
+        });
+    </script>
+
+</body>
+</html>
